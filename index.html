@@ -578,7 +578,7 @@
   // =========================================================
   // การตั้งค่า API
   // =========================================================
-  const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbykoa7ChPpaZ_c6RL04kmnpvj8O2GsH7fNBZMuUUEOkrhk8InOZ9vQS_kQ71Pn-SxPB/exec';
+  const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbz7TBi7FSki1b_nqMHilVKTvLHoT4DVDcjN3QkfpEGrJGbI_jBpiavuUTE0Z96FoYzH/exec';
 
   // State
   let allEquipments = [];
@@ -710,6 +710,34 @@
     document.getElementById('prevPhotosCard').classList.add('hidden');
   }
 
+  // ดึง Drive File ID จาก URL รูปแบบต่างๆ ที่อาจเก็บไว้ในชีต
+  function extractDriveFileId(url){
+    if (!url) return null;
+    var m = url.match(/[-\w]{25,}/);
+    return m ? m[0] : null;
+  }
+
+  // สลับไปลองลิงก์รูปแบบอื่นถ้าโหลดไม่ขึ้น (บาง Workspace บล็อก thumbnail แต่ใช้ lh3 ได้ หรือกลับกัน)
+  function handlePhotoError(imgEl, label){
+    var fid = imgEl.getAttribute('data-fid');
+    var tried = imgEl.getAttribute('data-tried') || '0';
+
+    if (fid && tried === '0') {
+      imgEl.setAttribute('data-tried', '1');
+      imgEl.src = 'https://lh3.googleusercontent.com/d/' + fid;
+      return;
+    }
+    if (fid && tried === '1') {
+      imgEl.setAttribute('data-tried', '2');
+      imgEl.src = 'https://drive.google.com/uc?export=view&id=' + fid;
+      return;
+    }
+    var box = imgEl.closest('.prev-photo-box');
+    if (box) {
+      box.innerHTML = `<span class="pp-empty">⚠️ โหลดภาพไม่สำเร็จ<br>${label}<br><small style="opacity:.7;">ตรวจสิทธิ์แชร์ไฟล์ใน Drive</small></span>`;
+    }
+  }
+
   function showPreviousPhotos(equipment, month){
     const card = document.getElementById('prevPhotosCard');
     const grid = document.getElementById('prevPhotoGrid');
@@ -726,7 +754,8 @@
         grid.innerHTML = PHOTO_LABELS.map((label, i) => {
           const url = photos[i];
           if (url) {
-            return `<div class="prev-photo-box"><img src="${url}" alt="${label}"><span class="pp-label">${label}</span></div>`;
+            const fid = extractDriveFileId(url);
+            return `<div class="prev-photo-box"><img src="${url}" alt="${label}" data-fid="${fid || ''}" data-tried="0" onerror="handlePhotoError(this,'${label}')"><span class="pp-label">${label}</span></div>`;
           }
           return `<div class="prev-photo-box"><span class="pp-empty">ไม่มีภาพ<br>${label}</span></div>`;
         }).join('');
